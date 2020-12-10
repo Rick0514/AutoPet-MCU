@@ -183,6 +183,7 @@ static void snd_thread_entry(void *parameter)
 				
 				if(get_dht11_data(&wsdata, val)){
 					rt_sprintf((char *)snd_data, "w%d\ns%d", wsdata.temp, wsdata.hum);
+				}
 					// rt_kprintf("temp: %d, tum: %d\n", wsdata.temp, wsdata.hum);
 				// }else	rt_kprintf("can not read\n");
 				

@@ -54,10 +54,7 @@ void setup_TCP(void);
 void rt_hw_board_init()
 {
 	u8 cnt = 5;
-	
-	u8 success = 0;
 	u16 status = 0;
-	u8 connection_status = 0;
 	char status_info[16];
 	char sta_ip[15+1]={0};
 	u8 ssid[] = "gy_bluetooth";
