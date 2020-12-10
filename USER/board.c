@@ -172,16 +172,16 @@ void setup_TCP(void)
 	u8 name[] = "@mcu#";
 	
 	#define TEST_LOCAL_PORT  		0	//local port=0 will generate a random local port each time fo connection. To avoid the rejection by TCP server due to repeative connection with the same ip:port
+									// change to your own server ip and port
+	#define TEST_REMOTE_ADDR    	"xxx.xxx.xxx.xxx"  
+	#define TEST_REMOTE_PORT  	    xxxx						
 
-	#define TEST_REMOTE_ADDR    	"49.234.68.36"  
-	#define TEST_REMOTE_PORT  	    8193						
 
-
-//	 Setup Connection and Config connection upon neccessary (Chinese: ´´½¨Ì×½Ó×Ö£¬ÒÔ¼°±ØÒªÊ±¶ÔÌ×½Ó×ÖµÄÒ»Ð©ÅäÖÃ)
+//	 Setup Connection and Config connection upon neccessary (Chinese: ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½Ö£ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ÒªÊ±ï¿½ï¿½ï¿½×½ï¿½ï¿½Öµï¿½Ò»Ð©ï¿½ï¿½ï¿½ï¿½)
 
 	M8266WIFI_SPI_Config_Tcp_Window_num(link_no, 4, NULL);
 	
-	//step 1: setup connection (Chinese: ²½Öè1£º´´½¨Ì×½Ó×ÖÁ¬½Ó£©
+	//step 1: setup connection (Chinese: ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó£ï¿½
 
 	//  u8 M8266WIFI_SPI_Setup_Connection(u8 tcp_udp, u16 local_port, char remote_addr, u16 remote_port, u8 link_no, u8 timeout_in_s, u16* status);
 	
