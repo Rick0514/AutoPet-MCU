@@ -2,7 +2,6 @@
 #include "sys.h"
 #include "misc.h"
 #include "M8266HostIf.h"
-#include "led.h"
 #include "M8266WIFIDrv.h"
 #include "M8266WIFI_ops.h"
 #include "brd_cfg.h"
@@ -42,9 +41,9 @@ static void rec_thread_entry(void *parameter);
 static void snd_thread_entry(void *parameter);
 static void check_link_entry(void *parameter);
 
-/* ÓÊÏä¿ØÖÆ¿é */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¿ï¿½ */
 static struct rt_mailbox mb;
-/* ÓÃÓÚ·ÅÓÊ¼þµÄÄÚ´æ³Ø */
+/* ï¿½ï¿½ï¿½Ú·ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ */
 static char mb_pool[16];
 
 static rt_mutex_t lock = RT_NULL;
@@ -55,12 +54,12 @@ int main(void)
 	rt_err_t result;
 	
 	rt_kprintf("get in main func! \n");
-    /* ³õÊ¼»¯Ò»¸ö mailbox */
+    /* ï¿½ï¿½Ê¼ï¿½ï¿½Ò»ï¿½ï¿½ mailbox */
     result = rt_mb_init(&mb,
-                        "mbt",                      /* Ãû³ÆÊÇ mbt */
-                        &mb_pool[0],                /* ÓÊÏäÓÃµ½µÄÄÚ´æ³ØÊÇ mb_pool */
-                        sizeof(mb_pool) / 4,        /* ÓÊÏäÖÐµÄÓÊ¼þÊýÄ¿£¬ÒòÎªÒ»·âÓÊ¼þÕ¼ 4 ×Ö½Ú ==> 16 mails*/
-                        RT_IPC_FLAG_FIFO);          /* ²ÉÓÃ FIFO ·½Ê½½øÐÐÏß³ÌµÈ´ý */
+                        "mbt",                      /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ mbt */
+                        &mb_pool[0],                /* ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½ mb_pool */
+                        sizeof(mb_pool) / 4,        /* ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½Ê¼ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ÎªÒ»ï¿½ï¿½ï¿½Ê¼ï¿½Õ¼ 4 ï¿½Ö½ï¿½ ==> 16 mails*/
+                        RT_IPC_FLAG_FIFO);          /* ï¿½ï¿½ï¿½ï¿½ FIFO ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ß³ÌµÈ´ï¿½ */
 						
     if (result != RT_EOK)
     {
@@ -162,7 +161,7 @@ static void snd_thread_entry(void *parameter)
 	u16 val;
 	
 	while(1){
-		/* ´ÓÓÊÏäÖÐÊÕÈ¡ÓÊ¼þ */
+		/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡ï¿½Ê¼ï¿½ */
         if (rt_mb_recv(&mb, (rt_uint32_t *)&cmd, RT_WAITING_FOREVER) == RT_EOK)
         {
            
@@ -184,8 +183,8 @@ static void snd_thread_entry(void *parameter)
 				
 				if(get_dht11_data(&wsdata, val)){
 					rt_sprintf((char *)snd_data, "w%d\ns%d", wsdata.temp, wsdata.hum);
-					rt_kprintf("temp: %d, tum: %d\n", wsdata.temp, wsdata.hum);
-				}else	rt_kprintf("can not read\n");
+					// rt_kprintf("temp: %d, tum: %d\n", wsdata.temp, wsdata.hum);
+				// }else	rt_kprintf("can not read\n");
 				
 				for(; loops <= max_loops; loops++){
 					sent = M8266WIFI_SPI_Send_Data(snd_data,len, link_no, &status);
@@ -194,10 +193,10 @@ static void snd_thread_entry(void *parameter)
 						max_loops = 100;
 						break;
 					}
-					else if( (status&0xFF) == 0x1E)	 // 0x1E = too many errors ecountered during sending and can not fixed, or transsmission blocked heavily(Chinese: ·¢ËÍ½×¶ÎÓöµ½Ì«¶àµÄ´íÎó»ò×èÈûÁË£¬¿ÉÒÔ¿¼ÂÇ¼Ó´ómax_loops)
+					else if( (status&0xFF) == 0x1E)	 // 0x1E = too many errors ecountered during sending and can not fixed, or transsmission blocked heavily(Chinese: ï¿½ï¿½ï¿½Í½×¶ï¿½ï¿½ï¿½ï¿½ï¿½Ì«ï¿½ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë£ï¿½ï¿½ï¿½ï¿½Ô¿ï¿½ï¿½Ç¼Ó´ï¿½max_loops)
 					{
 						max_loops = ((max_loops >= 2000) ? 2000 : (max_loops + 100));
-						//add some process here (Chinese: ¿ÉÒÔÔÚ´Ë´¦¼ÓÒ»Ð©´¦Àí£¬±ÈÈçÔö¼Ómax_loopsµÄÖµ)
+						//add some process here (Chinese: ï¿½ï¿½ï¿½ï¿½ï¿½Ú´Ë´ï¿½ï¿½ï¿½Ò»Ð©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½max_loopsï¿½ï¿½Öµ)
 					}
 					rt_thread_mdelay(10);
 				}

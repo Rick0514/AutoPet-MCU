@@ -5,7 +5,6 @@
 
 #if defined(__CC_ARM) || defined(__CLANG_ARM)
 //#include "RTE_Components.h"
-
 #define RTE_USING_FINSH
 
 #if defined(RTE_USING_FINSH)
