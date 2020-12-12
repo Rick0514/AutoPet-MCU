@@ -45,9 +45,9 @@ static void check_link_entry(void *parameter);
 static struct rt_mailbox mb;
 /* ���ڷ��ʼ����ڴ�� */
 static char mb_pool[16];
-
 static rt_mutex_t lock = RT_NULL;
 
+static void feeddog(void);
 int main(void)
 { 
 	
@@ -168,10 +168,7 @@ static void snd_thread_entry(void *parameter)
             if(cmd == myTask.feed_dog)
 			{
 //				rt_kprintf("feed the dog\n");
-				setOpenAngle(45);
-				rt_thread_mdelay(1000);
-				setOpenAngle(0);
-			
+				feeddog();
 			}
 			else if(cmd == myTask.get_ws)
 			{
@@ -265,9 +262,19 @@ static void check_link_entry(void *parameter)
 		}
 		M8266WIFI_SPI_Send_Data(beat, 5, 0, &status);
 		rt_thread_mdelay(2000);
-		
 	}
 	
-		
 }
 
+
+static void feeddog(void)
+{
+	u8 i;
+	for(i=0; i<5; i++){
+		setOpenAngle(45);
+		rt_thread_mdelay(500);
+		setOpenAngle(135);
+		rt_thread_mdelay(500);
+	}
+	setOpenAngle(0);
+}
