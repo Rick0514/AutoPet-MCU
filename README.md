@@ -11,6 +11,16 @@
 - [x] DHT11温湿度传感器
 - [x] ALK8266 WIFI模组
 
+## Hardware interface
+
+* wifi module
+    * SCLK/MISO/MOSI --> PA5/PA6/PA7
+    * nCS/nReset --> PA4/PA1
+* dht11 module
+    * data --> PC7
+* pwm
+    * pwm --> PB5
+
 ## Kernel
 - [x] RT-Thread Nano
 
