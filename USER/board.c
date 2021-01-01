@@ -21,6 +21,7 @@
 #include "brd_cfg.h"
 #include "pwm.h"
 #include "dht11.h"
+#include "rtc.h"
 
 #define _SCB_BASE       (0xE000E010UL)
 #define _SYSTICK_CTRL   (*(rt_uint32_t *)(_SCB_BASE + 0x0))
@@ -62,8 +63,13 @@ void rt_hw_board_init()
 	extern uint8_t OSRunning;
 	SysTick_Config(SystemCoreClock / RT_TICK_PER_SECOND);
 
-	
 	// init all components
+	while(RTC_Init())			
+	{ 
+		printf("RTC ERROR!!");	
+		delay_ms(1000);
+		printf("RTC Trying...");	
+	}	
 	delay_init();
 	uart_init(115200);
 	TIM3_PWM_Init(1999, 719);
@@ -171,12 +177,6 @@ void setup_TCP(void)
 	u8  link_no=0;
 	u8 name[] = "@mcu#";
 	
-	#define TEST_LOCAL_PORT  		0	//local port=0 will generate a random local port each time fo connection. To avoid the rejection by TCP server due to repeative connection with the same ip:port
-									// change to your own server ip and port
-	#define TEST_REMOTE_ADDR    	"xxx.xxx.xxx.xxx"  
-	#define TEST_REMOTE_PORT  	    xxxx						
-
-
 //	 Setup Connection and Config connection upon neccessary (Chinese: �����׽��֣��Լ���Ҫʱ���׽��ֵ�һЩ����)
 
 	M8266WIFI_SPI_Config_Tcp_Window_num(link_no, 4, NULL);

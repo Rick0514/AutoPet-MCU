@@ -11,6 +11,7 @@
 #include "delay.h"
 #include "pwm.h"
 #include "dht11.h"
+#include "rtc.h"
 
 #define TIME_SLICE 10
 #define THREAD_PRO 5
@@ -19,11 +20,23 @@ struct task
 {
 	u8 feed_dog;
 	u8 get_ws;
+	u8 cal_time;
+	u8 wake_wifi;
+};
+
+struct caltime
+{
+	u16 year;
+	u8 mon;
+	u8 day;
+	u8 hour;
+	u8 min;
+	u8 sec;
 };
 
 static struct dht11_data wsdata;
-
-static struct task myTask = {'a', 'b'};
+static struct task myTask = {'a', 'b', 'c', 'd'};
+static struct caltime myCaltime;
 
 ALIGN(RT_ALIGN_SIZE)
 static struct rt_thread check_link_thread;
@@ -41,25 +54,45 @@ static void rec_thread_entry(void *parameter);
 static void snd_thread_entry(void *parameter);
 static void check_link_entry(void *parameter);
 
-/* ������ƿ� */
 static struct rt_mailbox mb;
-/* ���ڷ��ʼ����ڴ�� */
 static char mb_pool[16];
 static rt_mutex_t lock = RT_NULL;
 
 static void feeddog(void);
+
+static u8 wifi_state = 1;
+static void idle_hook(void)
+{
+	// check the time: when it is at night, close wifi
+	if((calendar.hour < 7) || (calendar.hour > 22)){
+		if(wifi_state == 1){
+			rt_kprintf("enter low mode\n");
+			// rt_thread_suspend(&check_link_thread);
+			// rt_thread_suspend(&rec_thread); rt_thread_suspend(&snd_thread);
+			M8266WIFI_Sleep_Module();	//close wifi
+		}
+		wifi_state = 0;
+	}else{
+		if(wifi_state == 0){
+			rt_kprintf("open wifi\n");
+			rt_mb_send(&mb, (rt_uint32_t)myTask.wake_wifi);
+			// rt_thread_resume(&check_link_thread);
+			// rt_thread_resume(&rec_thread); rt_thread_resume(&snd_thread);
+		}		//open wifi
+		wifi_state = 1;
+	}
+}
+
 int main(void)
 { 
 	
 	rt_err_t result;
-	
 	rt_kprintf("get in main func! \n");
-    /* ��ʼ��һ�� mailbox */
     result = rt_mb_init(&mb,
-                        "mbt",                      /* ������ mbt */
-                        &mb_pool[0],                /* �����õ����ڴ���� mb_pool */
-                        sizeof(mb_pool) / 4,        /* �����е��ʼ���Ŀ����Ϊһ���ʼ�ռ 4 �ֽ� ==> 16 mails*/
-                        RT_IPC_FLAG_FIFO);          /* ���� FIFO ��ʽ�����̵߳ȴ� */
+                        "mbt",                     	
+                        &mb_pool[0],               	
+                        sizeof(mb_pool) / 4,       	
+                        RT_IPC_FLAG_FIFO);         	
 						
     if (result != RT_EOK)
     {
@@ -73,7 +106,7 @@ int main(void)
         rt_kprintf("create dynamic mutex failed.\n");
         return -1;
     }
-	
+
 	// init rec thread and run it 
 	rt_thread_init(&rec_thread,
 				   "rec",
@@ -110,6 +143,7 @@ int main(void)
 	rt_thread_startup(&rec_thread);
     rt_thread_startup(&snd_thread);
 	
+	rt_thread_idle_sethook(idle_hook);
 	return 0;
 		   
 } //end of main 
@@ -118,8 +152,8 @@ static void rec_thread_entry(void *parameter){
 	
 	u8 link_no = 0;
 	u16 status = 0;
-	u8 RecvData[16];
-	
+	u8 RecvData[32];
+	u8 *pstr;
 	while(1)
 	{
 		if(M8266WIFI_SPI_Has_DataReceived())
@@ -139,7 +173,23 @@ static void rec_thread_entry(void *parameter){
 			// analyse the recdata and send to snd_thread
 			if((RecvData[0] == 'f') && (RecvData[1] == 'd'))	rt_mb_send(&mb, (rt_uint32_t)myTask.feed_dog);
 			if((RecvData[0] == 'w') && (RecvData[1] == 's'))	rt_mb_send(&mb, (rt_uint32_t)myTask.get_ws);
-						
+			if((RecvData[0] == 's') && (RecvData[1] == 't')){
+				pstr = &RecvData[2];
+				myCaltime.year = (*pstr - '0') * 1000 + ((*(pstr + 1) - '0') * 100) + ((*(pstr + 2) - '0') * 10) + (*(pstr + 3) - '0');
+				pstr += 4;
+				myCaltime.mon = (*pstr - '0') * 10 + (*(pstr + 1) - '0');
+				pstr += 2;
+				myCaltime.day = (*pstr - '0') * 10 + (*(pstr + 1) - '0');
+				pstr += 2;
+				myCaltime.hour = (*pstr - '0') * 10 + (*(pstr + 1) - '0');
+				pstr += 2;
+				myCaltime.min = (*pstr - '0') * 10 + (*(pstr + 1) - '0');
+				pstr += 2;
+				myCaltime.sec = (*pstr - '0') * 10 + (*(pstr + 1) - '0');
+				rt_kprintf("get caltime: %d/%d/%d %d:%d:%d \n", myCaltime.year, myCaltime.mon, myCaltime.day,
+								myCaltime.hour, myCaltime.min, myCaltime.sec);
+				rt_mb_send(&mb, (rt_uint32_t)myTask.cal_time);
+			}
 		
 		} // end of if(M8266WIFI_SPI_Has_DataReceived())	
 		rt_thread_mdelay(100);
@@ -161,7 +211,7 @@ static void snd_thread_entry(void *parameter)
 	u16 val;
 	
 	while(1){
-		/* ����������ȡ�ʼ� */
+			
         if (rt_mb_recv(&mb, (rt_uint32_t *)&cmd, RT_WAITING_FOREVER) == RT_EOK)
         {
            
@@ -169,6 +219,18 @@ static void snd_thread_entry(void *parameter)
 			{
 //				rt_kprintf("feed the dog\n");
 				feeddog();
+			}else if(cmd == myTask.cal_time){
+				RTC_Set(myCaltime.year, myCaltime.mon, myCaltime.day, myCaltime.hour, myCaltime.min, myCaltime.sec);
+			}
+			else if(cmd == myTask.wake_wifi){
+				rt_kprintf("wake up the wifi\n");
+				rt_enter_critical();
+				M8266HostIf_Init();
+				M8266WIFI_Module_Hardware_Reset();
+				M8266HostIf_SPI_SetSpeed(SPI_BaudRatePrescaler_4);
+				rt_thread_mdelay(60);
+				M8266HostIf_SPI_Select((uint32_t)M8266WIFI_INTERFACE_SPI, 18000000, NULL);
+				rt_exit_critical();
 			}
 			else if(cmd == myTask.get_ws)
 			{
@@ -221,46 +283,55 @@ static void check_link_entry(void *parameter)
 	char sta_ip[16] = {0};
 	int ret;
 	u8 beat[] = "beat";
+	u8 name[] = "@mcu#";
 	while(1)
 	{
-		M8266WIFI_SPI_Get_STA_Connection_Status(&connection_status, &status);
-		
-		if(connection_status!=5)
-		{
-			rt_kprintf("lost AP\n");
-			M8266WIFI_SPI_STA_Connect_Ap(ssid, pwd, 0, 5, &status);
-			rt_thread_suspend(&rec_thread); rt_thread_suspend(&snd_thread);
-			while(M8266WIFI_SPI_wait_sta_connecting_to_ap_and_get_ip(sta_ip, 10)==0) // max wait 10s to get sta ip 
+		if(wifi_state){
+			M8266WIFI_SPI_Get_STA_Connection_Status(&connection_status, &status);
+			if(connection_status!=5)
 			{
-				printf("check the ap is open and retry to connect ap\r\n");
-				delay_ms(1000);
+				rt_kprintf("lost AP\n");
 				M8266WIFI_SPI_STA_Connect_Ap(ssid, pwd, 0, 5, &status);
-			}
-			rt_thread_resume(&rec_thread); rt_thread_resume(&snd_thread);
-		}
-		ret = M8266WIFI_SPI_Query_Connection(0, NULL, &connection_status, NULL, NULL, NULL, &status);
-		
-		if(ret == 1){
-			if((connection_status < 3) || (connection_status >= 6))
-			{
-				rt_kprintf("lost TCP\n");
 				rt_thread_suspend(&rec_thread); rt_thread_suspend(&snd_thread);
-				M8266WIFI_SPI_Get_STA_Connection_Status(&connection_status, &status);
-				if(connection_status!=5)
+				while((wifi_state) && (M8266WIFI_SPI_wait_sta_connecting_to_ap_and_get_ip(sta_ip, 10)==0)) // max wait 10s to get sta ip 
 				{
-					rt_kprintf("lost AP\n");
-					while(M8266WIFI_SPI_wait_sta_connecting_to_ap_and_get_ip(sta_ip, 10)==0) // max wait 10s to get sta ip 
-					{
-						printf("check the ap is open and retry to connect ap\r\n");
-						delay_ms(1000);
-					}
+					printf("check the ap is open and retry to connect ap\r\n");
+					delay_ms(1000);
+					M8266WIFI_SPI_STA_Connect_Ap(ssid, pwd, 0, 5, &status);
 				}
-				setup_TCP();
 				rt_thread_resume(&rec_thread); rt_thread_resume(&snd_thread);
 			}
-				
+			ret = M8266WIFI_SPI_Query_Connection(0, NULL, &connection_status, NULL, NULL, NULL, &status);
+			
+			if(ret == 1){
+				if((connection_status < 3) || (connection_status >= 6))
+				{
+					rt_kprintf("lost TCP\n");
+					rt_thread_suspend(&rec_thread); rt_thread_suspend(&snd_thread);
+					M8266WIFI_SPI_Get_STA_Connection_Status(&connection_status, &status);
+					if(connection_status!=5)
+					{
+						rt_kprintf("lost AP\n");
+						while((wifi_state) && (M8266WIFI_SPI_wait_sta_connecting_to_ap_and_get_ip(sta_ip, 10)==0)) // max wait 10s to get sta ip 
+						{
+							printf("check the ap is open and retry to connect ap\r\n");
+							delay_ms(1000);
+						}
+					}
+					while((wifi_state) && (M8266WIFI_SPI_Setup_Connection(1, TEST_LOCAL_PORT, TEST_REMOTE_ADDR, TEST_REMOTE_PORT, 0, 30, &status)==0))
+					{	
+				//		printf("err:0x%x\n", status);
+						printf("connection failed!!\r\n");
+						delay_ms(1000);	//	after 2s reconnect
+						delay_ms(1000);
+					}
+					M8266WIFI_SPI_Send_Data(name, sizeof(name), 0, &status);
+					rt_thread_resume(&rec_thread); rt_thread_resume(&snd_thread);
+				}
+					
+			}
+			M8266WIFI_SPI_Send_Data(beat, 5, 0, &status);
 		}
-		M8266WIFI_SPI_Send_Data(beat, 5, 0, &status);
 		rt_thread_mdelay(2000);
 	}
 	
@@ -276,5 +347,5 @@ static void feeddog(void)
 		setOpenAngle(135);
 		rt_thread_mdelay(500);
 	}
-	setOpenAngle(0);
+	setOpenAngle(30);	// prevent jam
 }

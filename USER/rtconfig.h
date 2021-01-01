@@ -5,7 +5,7 @@
 
 #if defined(__CC_ARM) || defined(__CLANG_ARM)
 //#include "RTE_Components.h"
-#define RTE_USING_FINSH
+//#define RTE_USING_FINSH
 
 #if defined(RTE_USING_FINSH)
 #define RT_USING_FINSH
@@ -57,11 +57,11 @@
 // <h>Hook Configuration
 // <c1>using hook
 //  <i>using hook
-//#define RT_USING_HOOK
+#define RT_USING_HOOK
 // </c>
 // <c1>using idle hook
 //  <i>using idle hook
-//#define RT_USING_IDLE_HOOK
+#define RT_USING_IDLE_HOOK
 // </c>
 // </h>
 
